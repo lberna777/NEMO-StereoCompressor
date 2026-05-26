@@ -1,92 +1,123 @@
 # Stereo Compressor
 
-Plugin audio **AU + VST3** per macOS che applica in serie:
+Plugin audio **AU + VST3** per macOS. Versione **v1.1 — Utility Pack 01**.
+
+Catena di processing in serie:
 
 ```
-INPUT ──► [ COMPRESSORE ] ──► [ STEREO WIDENER ] ──► OUTPUT
+INPUT ──► [HI-PASS] ──► [LO-PASS] ──► [COMPRESSOR] ──► [HABISSO sat] ──► [WIDENER M/S] ──► OUTPUT
 ```
-
-Pensato per buss di mix e master di typebeat / produzioni hip-hop e trap: compatta la dinamica e subito dopo allarga l'immagine stereofonica via processing **Mid/Side**.
 
 - **Universal binary** (Apple Silicon + Intel)
 - **macOS 11.0+** (testato sull'ultima release)
 - **Logic Pro, GarageBand, Ableton, Cubase, Reaper, Studio One, FL Studio Mac**
 
-> Per installare: vedi [INSTALL.md](INSTALL.md).
+Per installare: vedi [INSTALL.md](INSTALL.md).
 
 ---
 
 ## Indice
-1. [Cosa fa, in dettaglio](#cosa-fa-in-dettaglio)
+
+1. [Cosa fa](#cosa-fa)
 2. [Parametri](#parametri)
-3. [La GR meter](#la-gr-meter)
+3. [UI Tour](#ui-tour)
 4. [Ricette di utilizzo](#ricette-di-utilizzo)
 5. [Architettura del segnale](#architettura-del-segnale)
 6. [Limiti noti](#limiti-noti)
 7. [FAQ](#faq)
+8. [Changelog](#changelog)
 
 ---
 
-## Cosa fa, in dettaglio
+## Cosa fa
 
-### Sezione 1 — Compressore
+### 1 · Hi-Pass + Lo-Pass (filtri input)
 
-Compressore **peak-detector stereo linked**: il detector guarda il massimo tra L e R, quindi i due canali vengono ridotti dello **stesso gain**. Questo preserva l'immagine stereo durante la compressione (non "tira" verso il canale più forte).
+Filtri Butterworth del 2° ordine in cascata. Servono a **ripulire il segnale** prima della compressione:
 
-- **Detector**: peak (non RMS) → reattivo ai transienti, ideale per drum e master.
-- **Gain computer**: hard knee classico. Sotto soglia → segnale invariato. Sopra → riduzione proporzionale al *ratio*.
-- **Envelope follower**: attack e release **separati**, coefficienti esponenziali ricalcolati ogni blocco dai parametri correnti.
-- **Makeup gain**: applicato post-detector, prima del widener.
+- **Hi-Pass**: rimuove rumble, low-end inutile, DC offset. Range 20-500 Hz.
+- **Lo-Pass**: addolcisce alte frequenze aspre, simula la limitazione di banda di hardware analogico. Range 2-20 kHz.
 
-### Sezione 2 — Stereo widener (M/S)
+Risposta in frequenza visualizzata nel display centrale, aggiornata in tempo reale.
 
-Dopo il compressore il segnale viene riscritto in dominio Mid/Side:
+### 2 · Compressore peak-detector stereo-linked
+
+- **Detector peak** stereo: guarda il massimo tra L e R → entrambi i canali ricevono lo stesso gain → l'immagine stereo non "balla".
+- **Envelope follower esponenziale** con attack/release separati.
+- **Hard knee** classico.
+- **Ratio a pulsanti** stile 1176: 4:1, 8:1, 12:1, 20:1, mutualmente esclusivi.
+- **Makeup gain** post-compressione, pre-saturazione.
+
+### 3 · HABISSO — saturazione tape
+
+Waveshaper non lineare basato su `tanh`. A 0% = bypass perfetto. Al massimo aggiunge **armoniche pari + dispari** che addolciscono i picchi e danno "calore" e "presenza" tipo tape machine.
+
+Compensazione automatica del livello (la saturazione non fa salire il volume in modo fastidioso).
+
+Iconografia: il tentacolo accanto al knob diventa più vibrante man mano che alzi il valore.
+
+### 4 · Stereo Widener M/S
+
+Mid/Side encoder dopo la saturazione:
 
 ```
-Mid  = (L + R) / 2     ← contenuto centrale (kick, snare, basso, voce)
-Side = (L - R) / 2     ← contenuto laterale (room, riverberi, synth larghi)
+M = (L + R) / 2       ← contenuto centrale (kick, basso, voce)
+S = (L - R) / 2       ← contenuto laterale (room, riverberi, ampi synth)
 ```
 
-Solo il **Side** viene scalato per il parametro Width, poi si ridecoda:
+Solo il Side viene scalato per `Width`, poi riencode:
 
 ```
-L = Mid + Side * Width
-R = Mid - Side * Width
+L = M + S·Width
+R = M − S·Width
 ```
 
-- `Width = 0.0` → mono perfetto (Side annullato).
-- `Width = 1.0` → segnale identico all'originale.
-- `Width = 2.0` → laterale raddoppiato, immagine molto larga (ma rischio fase su mono).
+- `Width = 0.0` → mono perfetto
+- `Width = 1.0` → segnale invariato
+- `Width = 2.0` → laterali raddoppiati
 
 ---
 
 ## Parametri
 
-| Knob | Range | Default | Note |
-|---|---|---|---|
-| **Threshold** | -60 → 0 dB | -12 | Sopra questa soglia il compressore inizia a ridurre. |
-| **Ratio** | 1:1 → 20:1 | 4:1 | 1:1 = nessuna compressione. 20:1 = quasi limiter. Skew logaritmico sul knob. |
-| **Attack** | 0.1 → 200 ms | 10 | Quanto velocemente reagisce ai picchi. Valori bassi = punch perso ma più controllo. |
-| **Release** | 10 → 2000 ms | 100 | Quanto velocemente lascia andare. Troppo veloce → pumping. Troppo lento → la compressione "rimane attaccata". |
-| **Makeup** | 0 → 24 dB | 0 | Compensazione del volume ridotto dalla compressione. |
-| **Width** | 0.0 → 2.0 | 1.3 | Scaling del canale Side. Applicato **dopo** il compressore. |
+| Sezione | Knob / Btn | Range | Default | Note |
+|---|---|---|---|---|
+| **EQ** | Hi-Pass | 20 → 500 Hz | 20 | Skew log. A 20 = bypass effettivo. |
+| **EQ** | Lo-Pass | 2k → 20k Hz | 20000 | Skew log. A 20k = bypass effettivo. |
+| **Comp** | Threshold | -60 → 0 dB | -12 | Sopra → compressione. |
+| **Comp** | Ratio (4 btn) | 4 / 8 / 12 / 20 | 4 | Mutualmente esclusivi. |
+| **Comp** | Attack | 0.1 → 200 ms | 10 | Più basso = più "pump", meno transienti. |
+| **Comp** | Release | 10 → 2000 ms | 100 | Troppo veloce = pumping. |
+| **Comp** | Makeup | 0 → 24 dB | 0 | Post-compressione. |
+| **Sat** | **HABISSO** 🐙 | 0 → 100 % | 0 | Saturazione tape. |
+| **Stereo** | Width | 0.0 → 2.0 | 1.3 | Side scaling M/S. |
 
 ---
 
-## La GR meter
-
-In basso al pannello, in tempo reale:
+## UI Tour
 
 ```
-GR  -3.4 dB
+┌────────────────────────────────────────────────────────────┐
+│                STEREO COMPRESSOR                           │
+│             v1.1 · UTILITY PACK 01                         │
+├─────┬────────────────────────────────────────────────┬─────┤
+│     │  ┌──────────────────────────────────────────┐  │     │
+│  I  │  │   FREQ RESPONSE (HP × LP)                │  │  O  │
+│  N  │  │      ── curve ciano + fill ──            │  │  U  │
+│     │  │   GR ████░░░░░░░░░░░░ -3.4 dB            │  │  T  │
+│ ▓▓  │  └──────────────────────────────────────────┘  │ ▓▓  │
+│ ▓▓  │   HP    LP    THR   ATT   REL   MAK            │ ▓▓  │
+│ ▓▓  │   ○     ○      ○     ○     ○     ○             │ ▓▓  │
+│     │                                                 │     │
+│     │   RATIO  [4][8][12][20]   HABISSO 🐙   WIDTH    │     │
+│     │                              ○                 ○│     │
+└─────┴────────────────────────────────────────────────┴─────┘
 ```
 
-Indica di quanti dB il compressore sta riducendo il segnale in quel momento, **mediato sul blocco audio corrente** e smoothed visivamente a 30 Hz.
-
-- `GR 0.0 dB` → niente compressione (segnale sotto soglia o ratio = 1).
-- `GR -2 / -4 dB` → compressione "musicale", l'orecchio non la sente esplicitamente.
-- `GR -6 / -10 dB` → compressione evidente, usala su singole tracce non sul master.
-- `GR < -10 dB` → stai schiacciando troppo, alza la soglia o abbassa il ratio.
+- **Display centrale**: curva HP × LP in tempo reale + barra GR rossa in basso.
+- **Meter verticali I/O** ai lati con segmenti dB e tacche -20 / -10 / -6 / -3 / 0.
+- **Ratio buttons** stile 1176: il pulsante attivo si illumina di ciano.
+- **Tentacolo**: si "anima" (alpha + spessore) man mano che alzi HABISSO.
 
 ---
 
@@ -95,57 +126,71 @@ Indica di quanti dB il compressore sta riducendo il segnale in quel momento, **m
 ### Master bus typebeat / trap
 
 ```
-Threshold:  -8 dB        (poca riduzione, ~2-3 dB di GR)
-Ratio:       2.5:1
-Attack:      30 ms       (lascia passare i transienti del kick)
-Release:     200 ms
-Makeup:      2 dB
-Width:       1.15        (leggera apertura, sicura in mono)
+HP:        30 Hz       (taglia rumble sub-percepibile)
+LP:        18 kHz      (addolcisce hi-hat aspri)
+Threshold: -8 dB
+Ratio:     4
+Attack:    30 ms       (lascia passare i transienti del kick)
+Release:   200 ms
+Makeup:    2 dB
+Habisso:   15%         (un pizzico di calore)
+Width:     1.15
 ```
-**Perché**: master glue + un filo di apertura senza sfasare il mix.
 
 ### Drum bus
 
 ```
-Threshold:  -10 dB
-Ratio:       4:1
-Attack:      5-10 ms
-Release:     80 ms
-Makeup:      3 dB
-Width:       1.0         (non allargare i drum: perdi il punch del kick centrale)
+HP:        40 Hz
+LP:        20 kHz      (bypass)
+Threshold: -10 dB
+Ratio:     8
+Attack:    5-10 ms
+Release:   80 ms
+Makeup:    3 dB
+Habisso:   25%         (drum più "presenti")
+Width:     1.0
 ```
 
-### Synth / melody bus
+### Synth / pad bus
 
 ```
-Threshold:  -18 dB
-Ratio:       2:1
-Attack:      20 ms
-Release:     300 ms
-Makeup:      0-2 dB
-Width:       1.5-1.7     (apertura marcata per pad e arp)
+HP:        60 Hz       (libera spazio per il basso)
+LP:        16 kHz
+Threshold: -18 dB
+Ratio:     4
+Attack:    20 ms
+Release:   300 ms
+Makeup:    2 dB
+Habisso:   10%
+Width:     1.6
 ```
 
-### Buss vocale (rap)
+### Bus vocale (rap)
 
 ```
-Threshold:  -16 dB
-Ratio:       3:1
-Attack:      8 ms
-Release:     120 ms
-Makeup:      4 dB
-Width:       1.0         (voce sempre al centro)
+HP:        100 Hz      (toglie il "boomy" della voce)
+LP:        14 kHz      (toglie aria fredda)
+Threshold: -16 dB
+Ratio:     8
+Attack:    8 ms
+Release:   120 ms
+Makeup:    4 dB
+Habisso:   30%         (calore, "presenza vintage")
+Width:     1.0
 ```
 
-### Sample / loop già finiti
+### Sample / loop
 
 ```
-Threshold:  -6 dB
-Ratio:       2:1
-Attack:      50 ms
-Release:     250 ms
-Makeup:      1 dB
-Width:       1.2-1.3     (apri leggermente il sample che spesso è già stretto)
+HP:        20 Hz
+LP:        20 kHz
+Threshold: -6 dB
+Ratio:     4
+Attack:    50 ms
+Release:   250 ms
+Makeup:    1 dB
+Habisso:   20%
+Width:     1.3
 ```
 
 ---
@@ -153,68 +198,81 @@ Width:       1.2-1.3     (apri leggermente il sample che spesso è già stretto)
 ## Architettura del segnale
 
 ```
-                    ┌──────────────────────────────────┐
-                    │           COMPRESSOR             │
-       L ──┐        │                                  │     ┌── L
-           ├───► peak detect ──► gain comp ──► env ────┼──┐  │
-       R ──┘        │              ▲                   │  │  │
-                    │       (threshold,                 │  │  │
-                    │        ratio, A/R)                │  │  │
-                    └──────────────────────────────────┘  │  │
-                                                          ▼  ▼
-                                                    apply gain
-                                                       (L, R)
-                                                          │
-                                                          ▼
-                    ┌──────────────────────────────────┐
-                    │       STEREO WIDENER (M/S)       │
-                    │                                  │
-                    │   M = (L+R)/2                    │
-                    │   S = (L-R)/2  ──► S *= Width    │
-                    │   L = M + S                      │
-                    │   R = M - S                      │
-                    └──────────────┬───────────────────┘
-                                   │
-                                   ▼
-                                OUTPUT
+       L ─┐
+          ├──► HP (Butterworth 2°) ──┐
+       R ─┘                          │
+                                     ▼
+       L ─┐                       LP (Butterworth 2°)
+          ├──► peak detect ──┐       │
+       R ─┘                  │       ▼
+                             ▼   COMPRESSOR (gain comp + env follower)
+                       gain reduction
+                             │       │
+                             ▼       ▼
+                          HABISSO (tanh waveshaper + auto-comp gain)
+                             │
+                             ▼
+                          M/S encode  →  Side *= Width  →  M/S decode
+                             │
+                             ▼
+                          OUTPUT
 ```
 
-Codice: tutto in un unico loop sample-by-sample in [PluginProcessor.cpp:80](source/PluginProcessor.cpp:80), zero latenza, processing in-place.
+Codice DSP: tutto in [PluginProcessor.cpp:processBlock](source/PluginProcessor.cpp). Zero latenza, processing in-place.
 
 ---
 
 ## Limiti noti
 
-- **No sidechain esterno**: il detector usa il segnale in input. Non puoi pilotarlo da un'altra traccia.
-- **No knee variabile**: hard knee fisso. Per compressione "soft" usa ratio bassi (2-3:1).
-- **No lookahead**: l'attack è puramente reattivo. Per transienti aggressivissimi (snare, click) è meglio un limiter dedicato dopo.
-- **Width > 1.5 + mix mono = pericolo**: cancellazioni di fase. Sempre testare in mono.
-- **Niente oversampling**: in casi estremi (ratio 20:1, attack 0.1 ms) può aliasare sui transienti. Per il master usa setting moderati.
+- **No sidechain esterno** (detector usa il segnale in input).
+- **No knee variabile** (hard knee fisso). Per soft → usa ratio 4:1.
+- **No lookahead** (attack puramente reattivo).
+- **No oversampling** in HABISSO → a 100% con segnali pieni di alte frequenze può comparire aliasing leggero. Tienilo sotto il 70% sul master.
+- **Width > 1.5 + mix mono** = rischio cancellazioni di fase. Sempre testare in mono.
 
 ---
 
 ## FAQ
 
-**Si può usare solo come compressore (senza widener)?**
-Sì → metti Width a `1.0`. Il widener diventa bypass matematico (mid+side = L, mid-side = R, ricostruzione esatta).
+**Si può usare solo come compressore?**
+Sì → HP = 20, LP = 20k, Habisso = 0, Width = 1.0 → la catena è praticamente bypass tranne il compressore.
 
-**Si può usare solo come widener?**
-Sì → metti Ratio a `1.0`. Il compressore non riduce nulla, passa solo il widener.
+**Si può usare solo come EQ HP/LP?**
+Sì → Ratio 4 + Threshold 0 dB → il compressore non comprime mai.
+
+**Solo widener?**
+Sì → vedi sopra + bypass dei filtri.
 
 **Funziona su tracce mono?**
-Sì, ma il widener è inerte (Mid = segnale, Side = 0). Pratica: usalo solo su tracce stereo.
+Sì, ma il widener è inerte (Side = 0). Filtri, compressore, saturazione funzionano regolarmente.
 
-**Perché la mia compressione fa pumping?**
-Release troppo veloce. Sali a 150-300 ms.
+**Perché HABISSO si chiama così?**
+Tape saturation = "scendere nell'abisso del calore analogico". Il tentacolo è il logo.
 
 **Logic dice "failed validation"**
-Quarantena Gatekeeper. Vedi [INSTALL.md → Gatekeeper](INSTALL.md#gatekeeper--quarantena).
+Quarantena Gatekeeper. Vedi [INSTALL.md → Gatekeeper](INSTALL.md#step-7--togli-la-quarantena-gatekeeper).
 
-**Posso farlo girare anche su Windows / FL Studio Windows?**
-Il CMakeLists è cross-platform e JUCE supporta Windows, ma `INSTALL.md` copre solo macOS. Su Windows servono Visual Studio 2022 + CMake e si compila in VST3.
+**Posso farlo girare su Windows?**
+JUCE supporta Windows VST3 — serve riadattare INSTALL.md (Visual Studio 2022 + CMake).
+
+---
+
+## Changelog
+
+### v1.1 — Utility Pack 01 (current)
+- **NEW**: filtri Hi-Pass + Lo-Pass con visualizzazione risposta in frequenza
+- **NEW**: HABISSO — saturazione tape via waveshaper tanh, con icona tentacolo animata
+- **NEW**: Ratio a pulsanti stile 1176 (4 / 8 / 12 / 20)
+- **UI**: restyle neomodern ispirato Acustica DOVE — pannello chiaro, knob lucidi, meter verticali I/O
+- **UI**: display centrale con curva EQ + GR bar overlay
+
+### v1.0
+- Compressore peak-detector stereo-linked
+- Stereo widener M/S
+- 6 knob, GR meter testuale
 
 ---
 
 ## Crediti
 
-Plugin scritto in C++ con [JUCE 8.0.8](https://juce.com). Compressore: implementazione classica peak-detector linked. Widener: standard M/S matrix.
+Plugin scritto in C++ con [JUCE 8.0.8](https://juce.com). Reference visivo: Acustica DOVE.

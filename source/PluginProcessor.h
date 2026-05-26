@@ -30,19 +30,42 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
 
-    // GR meter (letto dall'editor)
-    float getGainReductionDB() const { return currentGR.load(); }
+    // ── Metering / display getters (lock-free, letti dall'editor) ──
+    float  getGainReductionDB()       const { return currentGR.load(); }
+    float  getInputLevelDB (int ch)   const { return inputLevels[ch].load(); }
+    float  getOutputLevelDB(int ch)   const { return outputLevels[ch].load(); }
+    float  getCurrentHpFreq()         const { return displayedHp.load(); }
+    float  getCurrentLpFreq()         const { return displayedLp.load(); }
+    double getCurrentSampleRate()     const { return currentSampleRate; }
+
+    static float ratioFromIndex(int idx);
 
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    // Stato compressore
+    // Compressore (envelope follower esponenziale)
     float envDB { 0.0f };
     float attackCoeff  { 0.0f };
     float releaseCoeff { 0.0f };
     double currentSampleRate { 44100.0 };
 
-    std::atomic<float> currentGR { 0.0f };
+    // Filtri HP / LP (Butterworth 2° ord. — uno per canale)
+    juce::dsp::IIR::Filter<float> hpFilter[2];
+    juce::dsp::IIR::Filter<float> lpFilter[2];
+    float lastHpFreq { -1.0f };
+    float lastLpFreq { -1.0f };
+
+    // Smoothing per parametri continui (evita zipper noise)
+    juce::SmoothedValue<float> hpFreqSmoothed;
+    juce::SmoothedValue<float> lpFreqSmoothed;
+    juce::SmoothedValue<float> habissoSmoothed;
+
+    // Stato esposto all'editor
+    std::atomic<float> currentGR     { 0.0f };
+    std::atomic<float> inputLevels[2];
+    std::atomic<float> outputLevels[2];
+    std::atomic<float> displayedHp   { 20.0f };
+    std::atomic<float> displayedLp   { 20000.0f };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StereoCompressorProcessor)
 };

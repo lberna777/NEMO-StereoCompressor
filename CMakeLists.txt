@@ -53,6 +53,7 @@ juce_generate_juce_header(StereoCompressor)
 target_sources(StereoCompressor PRIVATE
     source/PluginProcessor.cpp
     source/PluginEditor.cpp
+    source/LookAndFeel.cpp
 )
 
 target_compile_definitions(StereoCompressor PUBLIC
