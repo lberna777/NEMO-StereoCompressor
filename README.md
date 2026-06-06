@@ -127,10 +127,13 @@ cp -r "build/StereoCompressor_artefacts/Release/VST3/Stereo Compressor.vst3" ~/.
 
 Quando esce una nuova versione su GitHub, ti basta scaricare le modifiche e ricompilare (JUCE resta in cache, la build è veloce).
 
+> Il comando `cmake -B build …` crea la cartella `build/` se non c'è (prima volta su una macchina nuova) **oppure** la riusa se esiste già: lo stesso comando va bene sia per la prima installazione sia per gli aggiornamenti.
+
 ### macOS (Logic Pro)
 ```bash
 cd NEMO-StereoCompressor
 git pull
+cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 # la build ricopia da sola l'AU in ~/Library/Audio/Plug-Ins/Components/
 # togli di nuovo la quarantena e rivalida:
@@ -143,6 +146,7 @@ Poi **riavvia Logic Pro** (rilegge i plugin all'avvio). Se non vedi le modifiche
 ```bash
 cd NEMO-StereoCompressor
 git pull
+cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 # ricopia il VST3 aggiornato:
 cp -r "build/StereoCompressor_artefacts/Release/VST3/Stereo Compressor.vst3" ~/.vst3/
