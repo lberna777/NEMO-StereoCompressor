@@ -3,47 +3,32 @@
 #include "PluginProcessor.h"
 #include "LookAndFeel.h"
 
-// ── Componente custom: display risposta in frequenza + GR overlay ──
-class FreqResponseDisplay : public juce::Component,
-                             private juce::Timer
+// ── Meter centrale OUT + GR, disegnato sopra il vetro dello skin ──
+class MeterDisplay : public juce::Component,
+                     private juce::Timer
 {
 public:
-    explicit FreqResponseDisplay(StereoCompressorProcessor& p);
-    ~FreqResponseDisplay() override;
-
+    explicit MeterDisplay(StereoCompressorProcessor& p);
+    ~MeterDisplay() override;
     void paint(juce::Graphics&) override;
-
 private:
     void timerCallback() override;
-
     StereoCompressorProcessor& processor;
-    float lastHp { -1.0f };
-    float lastLp { -1.0f };
-    float displayedGR { 0.0f };
+    float displayedOut { -60.0f };
+    float displayedGR  {   0.0f };
 };
 
-// ── Meter verticale stereo (I o O) ──
-class VerticalMeter : public juce::Component,
-                       private juce::Timer
+// ── Toggle PHASE: disegna l'asset on/off in base allo stato ──
+class PhaseToggle : public juce::Button
 {
 public:
-    enum Side { Input, Output };
-
-    VerticalMeter(StereoCompressorProcessor& p, Side s);
-    ~VerticalMeter() override;
-
-    void paint(juce::Graphics&) override;
-
+    PhaseToggle();
+    void paintButton(juce::Graphics&, bool, bool) override;
 private:
-    void timerCallback() override;
-
-    StereoCompressorProcessor& processor;
-    Side side;
-    float displayedL { -60.0f };
-    float displayedR { -60.0f };
+    juce::Image onImg, offImg;
 };
 
-// ── Editor principale ──
+// ── Editor principale (skin NEMO) ──
 class StereoCompressorEditor : public juce::AudioProcessorEditor,
                                 private juce::Timer
 {
@@ -56,38 +41,32 @@ public:
 
 private:
     void timerCallback() override;
-    void paintTentacleIcon(juce::Graphics& g, juce::Rectangle<int> bounds, float intensity);
 
     StereoCompressorProcessor& processor;
-    NeomodernLookAndFeel lnf;
+    NemoLookAndFeel lnf;
+    juce::Image background;
 
     struct KnobGroup
     {
         juce::Slider slider;
-        juce::Label  label;
         std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment;
     };
 
-    KnobGroup hpFreq, lpFreq;
-    KnobGroup threshold, attack, release, makeup;
-    KnobGroup habisso, width;
+    KnobGroup hpFreq, lpFreq, threshold, attack, release, makeup, habiss, paralarva;
 
-    // Ratio 1176-style
-    juce::TextButton ratioButtons[4];
-    juce::Label      ratioLabel;
+    juce::Slider inFader, outFader;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> inAtt, outAtt;
 
-    // Display + meter
-    FreqResponseDisplay freqDisplay;
-    VerticalMeter       inMeter;
-    VerticalMeter       outMeter;
+    PhaseToggle phaseButton;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> phaseAtt;
 
-    // Per evitare repaint inutili del tentacolo
-    float lastHabissoVisual { -1.0f };
+    MeterDisplay meterDisplay;
 
-    // Rect dove disegnare il tentacolo (calcolato in resized())
-    juce::Rectangle<int> tentacleArea;
+    float        ledLevel[8] { 0,0,0,0,0,0,0,0 };          // intensità accensione box
+    juce::Colour ledColour[8];                              // colore per-box (HABISS/PARALARVA reattivi)
 
-    void setupKnob(KnobGroup& g, const juce::String& paramID, const juce::String& name);
+    void setupKnob(KnobGroup&, const juce::String& paramID);
+    void drawActivityLed(juce::Graphics&, juce::Rectangle<int>, float level, juce::Colour);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StereoCompressorEditor)
 };

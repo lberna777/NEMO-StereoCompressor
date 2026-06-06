@@ -32,13 +32,16 @@ public:
 
     // ── Metering / display getters (lock-free, letti dall'editor) ──
     float  getGainReductionDB()       const { return currentGR.load(); }
+    float  getAttackActivity()        const { return attackAct.load(); }
+    float  getReleaseActivity()       const { return releaseAct.load(); }
     float  getInputLevelDB (int ch)   const { return inputLevels[ch].load(); }
     float  getOutputLevelDB(int ch)   const { return outputLevels[ch].load(); }
     float  getCurrentHpFreq()         const { return displayedHp.load(); }
     float  getCurrentLpFreq()         const { return displayedLp.load(); }
     double getCurrentSampleRate()     const { return currentSampleRate; }
 
-    static float ratioFromIndex(int idx);
+    // Ratio fisso 4:1 (i pulsanti Ratio sono stati rimossi nel redesign NEMO)
+    static constexpr float kFixedRatio = 4.0f;
 
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -60,8 +63,14 @@ private:
     juce::SmoothedValue<float> lpFreqSmoothed;
     juce::SmoothedValue<float> habissoSmoothed;
 
+    // Gain di input/output (fader IN/OUT del redesign NEMO) — smoothed anti-zipper
+    juce::SmoothedValue<float> inGainSmoothed;
+    juce::SmoothedValue<float> outGainSmoothed;
+
     // Stato esposto all'editor
     std::atomic<float> currentGR     { 0.0f };
+    std::atomic<float> attackAct     { 0.0f };
+    std::atomic<float> releaseAct    { 0.0f };
     std::atomic<float> inputLevels[2];
     std::atomic<float> outputLevels[2];
     std::atomic<float> displayedHp   { 20.0f };

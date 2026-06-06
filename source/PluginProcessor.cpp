@@ -14,22 +14,20 @@ StereoCompressorProcessor::StereoCompressorProcessor()
     }
 }
 
-float StereoCompressorProcessor::ratioFromIndex(int idx)
-{
-    switch (idx)
-    {
-        case 0: return 4.0f;
-        case 1: return 8.0f;
-        case 2: return 12.0f;
-        case 3: return 20.0f;
-        default: return 4.0f;
-    }
-}
-
 juce::AudioProcessorValueTreeState::ParameterLayout
 StereoCompressorProcessor::createParameterLayout()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+
+    // ── Input gain (fader IN) ──
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "inputGain", "Input",
+        juce::NormalisableRange<float>(-24.0f, 24.0f, 0.1f), 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel("dB")));
+
+    // ── Phase invert (switch PHASE) ──
+    params.push_back(std::make_unique<juce::AudioParameterBool>(
+        "phase", "Phase", false));
 
     // ── EQ filtri ──
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
@@ -48,10 +46,7 @@ StereoCompressorProcessor::createParameterLayout()
         juce::NormalisableRange<float>(-60.0f, 0.0f, 0.1f), -12.0f,
         juce::AudioParameterFloatAttributes().withLabel("dB")));
 
-    params.push_back(std::make_unique<juce::AudioParameterChoice>(
-        "ratioSel", "Ratio",
-        juce::StringArray { "4:1", "8:1", "12:1", "20:1" },
-        0)); // default 4:1
+    // Ratio rimosso nel redesign NEMO → compressore a ratio fisso 4:1 (kFixedRatio)
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         "attack", "Attack",
@@ -68,16 +63,22 @@ StereoCompressorProcessor::createParameterLayout()
         juce::NormalisableRange<float>(0.0f, 24.0f, 0.1f), 0.0f,
         juce::AudioParameterFloatAttributes().withLabel("dB")));
 
-    // ── HABISSO saturation ──
+    // ── HABISS — saturazione tape (ex HABISSO) ──
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        "habisso", "Habisso",
+        "habisso", "Habiss",
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f), 0.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
 
-    // ── Stereo widener ──
+    // ── PARALARVA — stereo widener M/S (ex Width) ──
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
-        "width", "Width",
+        "width", "Paralarva",
         juce::NormalisableRange<float>(0.0f, 2.0f, 0.01f), 1.3f));
+
+    // ── Output gain (fader OUT) ──
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "outputGain", "Output",
+        juce::NormalisableRange<float>(-24.0f, 24.0f, 0.1f), 0.0f,
+        juce::AudioParameterFloatAttributes().withLabel("dB")));
 
     return { params.begin(), params.end() };
 }
@@ -104,10 +105,16 @@ void StereoCompressorProcessor::prepareToPlay(double sampleRate, int samplesPerB
     hpFreqSmoothed.reset(sampleRate, rampSec);
     lpFreqSmoothed.reset(sampleRate, rampSec);
     habissoSmoothed.reset(sampleRate, rampSec);
+    inGainSmoothed.reset(sampleRate, rampSec);
+    outGainSmoothed.reset(sampleRate, rampSec);
 
     hpFreqSmoothed.setCurrentAndTargetValue(apvts.getRawParameterValue("hpFreq")->load());
     lpFreqSmoothed.setCurrentAndTargetValue(apvts.getRawParameterValue("lpFreq")->load());
     habissoSmoothed.setCurrentAndTargetValue(apvts.getRawParameterValue("habisso")->load());
+    inGainSmoothed.setCurrentAndTargetValue(
+        juce::Decibels::decibelsToGain(apvts.getRawParameterValue("inputGain")->load()));
+    outGainSmoothed.setCurrentAndTargetValue(
+        juce::Decibels::decibelsToGain(apvts.getRawParameterValue("outputGain")->load()));
 
     lastHpFreq = -1.0f; // forza ricalcolo coeff. al primo sample
     lastLpFreq = -1.0f;
@@ -123,7 +130,18 @@ void StereoCompressorProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     float* left  = buffer.getWritePointer(0);
     float* right = buffer.getWritePointer(1);
 
-    // ── Misura livello input (peak per blocco) ──
+    // ── Input gain + phase invert (pre-catena) ──
+    inGainSmoothed.setTargetValue(
+        juce::Decibels::decibelsToGain(apvts.getRawParameterValue("inputGain")->load()));
+    const float phaseMul = (apvts.getRawParameterValue("phase")->load() > 0.5f) ? -1.0f : 1.0f;
+    for (int i = 0; i < numSamples; ++i)
+    {
+        const float g = inGainSmoothed.getNextValue() * phaseMul;
+        left [i] *= g;
+        right[i] *= g;
+    }
+
+    // ── Misura livello input (peak per blocco, post fader IN) ──
     {
         float pL = 0.0f, pR = 0.0f;
         for (int i = 0; i < numSamples; ++i)
@@ -137,8 +155,7 @@ void StereoCompressorProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     // ── Leggi parametri (una volta per blocco) ──
     const float threshold = apvts.getRawParameterValue("threshold")->load();
-    const int   ratioIdx  = (int) apvts.getRawParameterValue("ratioSel")->load();
-    const float ratio     = ratioFromIndex(ratioIdx);
+    const float ratio     = kFixedRatio; // ratio fisso 4:1 (Ratio rimosso nel redesign)
     const float attackMs  = apvts.getRawParameterValue("attack")->load();
     const float releaseMs = apvts.getRawParameterValue("release")->load();
     const float makeup    = apvts.getRawParameterValue("makeup")->load();
@@ -152,6 +169,7 @@ void StereoCompressorProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     releaseCoeff = std::exp(-1.0f / (float(currentSampleRate) * releaseMs * 0.001f));
 
     float grAccum = 0.0f;
+    int   atkCount = 0, relCount = 0; // attività attack/release per i LED
 
     for (int i = 0; i < numSamples; ++i)
     {
@@ -192,10 +210,9 @@ void StereoCompressorProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         if (peakDB > threshold)
             gainDB = (threshold - peakDB) * (1.0f - 1.0f / ratio);
 
-        if (gainDB < envDB)
-            envDB = attackCoeff  * envDB + (1.0f - attackCoeff)  * gainDB;
-        else
-            envDB = releaseCoeff * envDB + (1.0f - releaseCoeff) * gainDB;
+        if (gainDB < envDB - 0.01f)      { envDB = attackCoeff  * envDB + (1.0f - attackCoeff)  * gainDB; ++atkCount; }
+        else if (envDB < -0.1f)          { envDB = releaseCoeff * envDB + (1.0f - releaseCoeff) * gainDB; ++relCount; }
+        else                               envDB = releaseCoeff * envDB + (1.0f - releaseCoeff) * gainDB;
 
         const float gain = juce::Decibels::decibelsToGain(envDB + makeup);
         left [i] *= gain;
@@ -226,10 +243,22 @@ void StereoCompressorProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     }
 
     currentGR.store(grAccum / float(numSamples));
+    attackAct .store(numSamples > 0 ? (float) atkCount / (float) numSamples : 0.0f);
+    releaseAct.store(numSamples > 0 ? (float) relCount / (float) numSamples : 0.0f);
     displayedHp.store(hpFreqSmoothed.getCurrentValue());
     displayedLp.store(lpFreqSmoothed.getCurrentValue());
 
-    // ── Misura livello output ──
+    // ── Output gain (fader OUT) ──
+    outGainSmoothed.setTargetValue(
+        juce::Decibels::decibelsToGain(apvts.getRawParameterValue("outputGain")->load()));
+    for (int i = 0; i < numSamples; ++i)
+    {
+        const float g = outGainSmoothed.getNextValue();
+        left [i] *= g;
+        right[i] *= g;
+    }
+
+    // ── Misura livello output (post fader OUT) ──
     {
         float pL = 0.0f, pR = 0.0f;
         for (int i = 0; i < numSamples; ++i)

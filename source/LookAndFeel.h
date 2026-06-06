@@ -1,12 +1,12 @@
 #pragma once
 #include <JuceHeader.h>
 
-// Custom look-and-feel ispirato ad Acustica DOVE: pannello chiaro brushed,
-// knob scuri lucidi con anello indicatore ciano, pulsanti stile 1176.
-class NeomodernLookAndFeel : public juce::LookAndFeel_V4
+// Look-and-feel dello skin NEMO: knob e fader disegnati con gli asset PNG
+// (alluminio fotorealistico). Il knob ruota; il cap del fader scorre.
+class NemoLookAndFeel : public juce::LookAndFeel_V4
 {
 public:
-    NeomodernLookAndFeel();
+    NemoLookAndFeel();
 
     void drawRotarySlider(juce::Graphics&, int x, int y, int width, int height,
                           float sliderPosProportional,
@@ -14,29 +14,19 @@ public:
                           float rotaryEndAngle,
                           juce::Slider&) override;
 
-    void drawButtonBackground(juce::Graphics&, juce::Button&,
-                              const juce::Colour& backgroundColour,
-                              bool shouldDrawButtonAsHighlighted,
-                              bool shouldDrawButtonAsDown) override;
+    void drawLinearSlider(juce::Graphics&, int x, int y, int width, int height,
+                          float sliderPos, float minSliderPos, float maxSliderPos,
+                          juce::Slider::SliderStyle, juce::Slider&) override;
 
-    void drawButtonText(juce::Graphics&, juce::TextButton&,
-                        bool shouldDrawButtonAsHighlighted,
-                        bool shouldDrawButtonAsDown) override;
+    int getSliderThumbRadius(juce::Slider&) override;
 
-    juce::Font getLabelFont(juce::Label&) override;
-
-    // ── Palette ──
-    static const juce::Colour PANEL_LIGHT;
-    static const juce::Colour PANEL_LIGHT_HI;
-    static const juce::Colour PANEL_DARK;
-    static const juce::Colour ACCENT_CYAN;
-    static const juce::Colour ACCENT_CYAN_DIM;
-    static const juce::Colour KNOB_BODY;
-    static const juce::Colour KNOB_BODY_HI;
-    static const juce::Colour KNOB_RIM;
-    static const juce::Colour TEXT_DARK;
-    static const juce::Colour TEXT_MUTED;
+    // ── Palette per meter / testo dei box valore ──
+    static const juce::Colour DISPLAY_TEXT;   // testo chiaro nei box
     static const juce::Colour METER_GREEN;
     static const juce::Colour METER_YELLOW;
     static const juce::Colour METER_RED;
+
+private:
+    juce::Image knobImg;
+    juce::Image faderImg;
 };

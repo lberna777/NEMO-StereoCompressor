@@ -50,6 +50,15 @@ juce_add_plugin(StereoCompressor
 #   fatal error: 'JuceHeader.h' file not found
 juce_generate_juce_header(StereoCompressor)
 
+# Asset grafici dello skin NEMO (immagini embeddate → BinaryData.h)
+juce_add_binary_data(NemoAssets SOURCES
+    source/assets/nemo_background.jpg
+    source/assets/nemo_knob.png
+    source/assets/nemo_fader.png
+    source/assets/nemo_phase_on.png
+    source/assets/nemo_phase_off.png
+)
+
 target_sources(StereoCompressor PRIVATE
     source/PluginProcessor.cpp
     source/PluginEditor.cpp
@@ -63,6 +72,7 @@ target_compile_definitions(StereoCompressor PUBLIC
 )
 
 target_link_libraries(StereoCompressor PRIVATE
+    NemoAssets
     juce::juce_audio_utils
     juce::juce_dsp
     PUBLIC

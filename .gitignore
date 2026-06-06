@@ -1,5 +1,7 @@
 build/
 .DS_Store
+# copia duplicata annidata (vecchia), non fa parte del progetto
+/StereoCompressor/
 *.xcodeproj/
 *.xcworkspace/
 xcuserdata/
