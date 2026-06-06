@@ -125,6 +125,42 @@ cp -r "build/StereoCompressor_artefacts/Release/VST3/Stereo Compressor.vst3" ~/.
 
 ---
 
+## 🔄 Aggiornare il plugin
+
+Quando esce una nuova versione su GitHub, ti basta scaricare le modifiche e ricompilare (JUCE resta in cache, la build è veloce).
+
+### macOS (Logic Pro)
+```bash
+cd NEMO-StereoCompressor
+git pull
+cmake --build build --config Release
+# la build ricopia da sola l'AU in ~/Library/Audio/Plug-Ins/Components/
+# togli di nuovo la quarantena e rivalida:
+xattr -dr com.apple.quarantine \
+  "~/Library/Audio/Plug-Ins/Components/Stereo Compressor.component"
+auval -v aufx Scmp Mypl
+```
+Poi **riavvia Logic Pro** (rilegge i plugin all'avvio). Se non vedi le modifiche: *Impostazioni → Plug-in Manager → Reset & Rescan Selection*.
+
+### Linux (Reaper)
+```bash
+cd NEMO-StereoCompressor
+git pull
+cmake --build build --config Release
+# ricopia il VST3 aggiornato:
+cp -r "build/StereoCompressor_artefacts/Release/VST3/Stereo Compressor.vst3" ~/.vst3/
+```
+In Reaper di solito basta riaprire il progetto; se serve: *Preferences → Plug-ins → VST → Re-scan*.
+
+> **Nota:** se cambi il `CMakeLists.txt` o la build dà errori dopo un aggiornamento grosso, rigenera la build da zero:
+> ```bash
+> rm -rf build
+> cmake -B build -DCMAKE_BUILD_TYPE=Release
+> cmake --build build --config Release
+> ```
+
+---
+
 ## Output della build
 
 ```
