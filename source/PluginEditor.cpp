@@ -12,13 +12,13 @@ namespace nemo
 
     constexpr int   BOX_X = 333, BOX_W = 80, BOX_H = 30;
 
-    constexpr int   MG_X0 = 589, MG_Y0 = 132, MG_X1 = 694, MG_Y1 = 948;
+    constexpr int   MG_X0 = 589, MG_Y0 = 218, MG_X1 = 694, MG_Y1 = 938; // +3 dB .. -60 dB
 
     constexpr int   INF_CX = 68, OUTF_CX = 778;
     constexpr int   FTRAVEL_TOP = 162, FTRAVEL_BOT = 1146, FCAP_W = 60;
     constexpr float FADER_ASPECT = 633.0f / 318.0f;        // cap = placca emblema
 
-    constexpr int   PH_CX = 255, PH_CY = 1100, PH_W = 98, PH_H = 52; // hotspot switch stampato
+    constexpr int   PH_CX = 259, PH_CY = 1111, PH_W = 64, PH_H = 32; // incasso traccia PHASE
 
     const juce::Colour LED_COLOUR  { 0xff39e0a6 };  // verde-ciano accensione box
     const juce::Colour HABISS_RED  { 0xffe8342a };  // HABISS più saturato/rosso salendo
@@ -59,39 +59,43 @@ void MeterDisplay::paint(juce::Graphics& g)
         return b.getBottom() - t * b.getHeight();
     };
 
-    const float gap  = b.getWidth() * 0.10f;
-    const float colW = (b.getWidth() - gap) * 0.5f;
-    auto outCol = juce::Rectangle<float>(b.getX(),              b.getY(), colW, b.getHeight());
-    auto grCol  = juce::Rectangle<float>(b.getX() + colW + gap, b.getY(), colW, b.getHeight());
-
-    // colori più stretti del 40% (centrati nella colonna)
-    auto narrow = [](juce::Rectangle<float> c)
+    // Colonne LED allineate a quelle stampate nel vetro (OUT a sx, GR a dx)
+    const float w = b.getWidth();
+    auto column = [&](float centreFrac)
     {
-        return c.withSizeKeepingCentre(c.getWidth() * 0.6f, c.getHeight());
+        const float cw = w * 0.21f;
+        const float cx = b.getX() + w * centreFrac;
+        return juce::Rectangle<float>(cx - cw * 0.5f, b.getY(), cw, b.getHeight());
     };
+    auto outCol = column(0.133f);
+    auto grCol  = column(0.876f);
 
-    // OUT (dal basso verso l'alto)
+    // OUT (livello, dal basso verso l'alto)
     {
-        auto fillR = narrow(outCol).withTop(dbToY(displayedOut));
+        auto fillR = outCol.withTop(dbToY(displayedOut));
         juce::ColourGradient grad(NemoLookAndFeel::METER_RED,   fillR.getCentreX(), outCol.getY(),
                                   NemoLookAndFeel::METER_GREEN, fillR.getCentreX(), outCol.getBottom(), false);
         grad.addColour(0.62, NemoLookAndFeel::METER_YELLOW);
         g.setGradientFill(grad);
         g.fillRect(fillR);
     }
-    // GR (dall'alto verso il basso)
+    // GR (compressione, dall'alto verso il basso)
     {
         float grAbs = juce::jlimit(0.0f, 24.0f, -displayedGR);
         float y1 = juce::jmap(grAbs, 0.0f, 24.0f, grCol.getY(), grCol.getBottom());
         g.setColour(NemoLookAndFeel::METER_RED.withAlpha(0.9f));
-        g.fillRect(narrow(grCol).withBottom(y1));
+        g.fillRect(grCol.withBottom(y1));
     }
 
-    // Segmentazione LED
+    // Segmentazione LED (solo sulle due colonne)
     g.setColour(juce::Colours::black.withAlpha(0.55f));
-    const int segs = 46;
+    const int segs = 42;
     for (int i = 1; i < segs; ++i)
-        g.fillRect(b.getX(), b.getY() + b.getHeight() * (float) i / (float) segs, b.getWidth(), 1.0f);
+    {
+        float y = b.getY() + b.getHeight() * (float) i / (float) segs;
+        g.fillRect(outCol.getX(), y, outCol.getWidth(), 1.0f);
+        g.fillRect(grCol.getX(),  y, grCol.getWidth(),  1.0f);
+    }
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -99,18 +103,24 @@ void MeterDisplay::paint(juce::Graphics& g)
 // ═════════════════════════════════════════════════════════════════════
 PhaseToggle::PhaseToggle() : juce::Button("phase")
 {
+    capImg = juce::ImageCache::getFromMemory(BinaryData::nemo_switch_png, BinaryData::nemo_switch_pngSize);
     setClickingTogglesState(true);
 }
 
 void PhaseToggle::paintButton(juce::Graphics& g, bool, bool)
 {
-    // Lo switch è già disegnato nello sfondo: qui solo un lieve glow dorato quando attivo
-    if (getToggleState())
-    {
-        auto r = getLocalBounds().toFloat().reduced(2.0f);
-        g.setColour(juce::Colour(0xffd4a83a).withAlpha(0.28f));
-        g.fillRoundedRectangle(r, 4.0f);
-    }
+    if (capImg.isNull()) return;
+
+    // Il bounds del button è l'incasso della traccia (vuoto nello sfondo).
+    // Il cursore scorre: ON = a destra, OFF = a sinistra.
+    auto b = getLocalBounds().toFloat();
+    const float capH = b.getHeight();
+    const float capW = capH * (float) capImg.getWidth() / (float) capImg.getHeight();
+    const float x = getToggleState() ? (b.getRight() - capW) : b.getX();
+
+    g.setImageResamplingQuality(juce::Graphics::highResamplingQuality);
+    g.drawImage(capImg, (int) x, (int) b.getY(), (int) capW, (int) capH,
+                0, 0, capImg.getWidth(), capImg.getHeight());
 }
 
 // ═════════════════════════════════════════════════════════════════════

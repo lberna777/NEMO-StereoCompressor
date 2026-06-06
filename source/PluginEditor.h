@@ -18,13 +18,14 @@ private:
     float displayedGR  {   0.0f };
 };
 
-// ── Toggle PHASE: hotspot trasparente sopra lo switch stampato nello sfondo ──
-// (estetica dello switch lasciata com'è nel background; lieve glow quando attivo)
+// ── Toggle PHASE: cursore che scorre a destra (ON) / sinistra (OFF) ──
 class PhaseToggle : public juce::Button
 {
 public:
     PhaseToggle();
     void paintButton(juce::Graphics&, bool, bool) override;
+private:
+    juce::Image capImg;
 };
 
 // ── Editor principale (skin NEMO) ──
