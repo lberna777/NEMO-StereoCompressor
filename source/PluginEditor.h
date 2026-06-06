@@ -18,14 +18,13 @@ private:
     float displayedGR  {   0.0f };
 };
 
-// ── Toggle PHASE: disegna l'asset on/off in base allo stato ──
+// ── Toggle PHASE: hotspot trasparente sopra lo switch stampato nello sfondo ──
+// (estetica dello switch lasciata com'è nel background; lieve glow quando attivo)
 class PhaseToggle : public juce::Button
 {
 public:
     PhaseToggle();
     void paintButton(juce::Graphics&, bool, bool) override;
-private:
-    juce::Image onImg, offImg;
 };
 
 // ── Editor principale (skin NEMO) ──

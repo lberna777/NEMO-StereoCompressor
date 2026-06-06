@@ -16,9 +16,9 @@ namespace nemo
 
     constexpr int   INF_CX = 68, OUTF_CX = 778;
     constexpr int   FTRAVEL_TOP = 162, FTRAVEL_BOT = 1146, FCAP_W = 60;
-    constexpr float FADER_ASPECT = 620.0f / 318.0f;
+    constexpr float FADER_ASPECT = 633.0f / 318.0f;        // cap = placca emblema
 
-    constexpr int   PH_CX = 253, PH_CY = 1108, PH_SZ = 124; // placca PHASE (aspetto 0.5)
+    constexpr int   PH_CX = 255, PH_CY = 1100, PH_W = 98, PH_H = 52; // hotspot switch stampato
 
     const juce::Colour LED_COLOUR  { 0xff39e0a6 };  // verde-ciano accensione box
     const juce::Colour HABISS_RED  { 0xffe8342a };  // HABISS più saturato/rosso salendo
@@ -99,18 +99,17 @@ void MeterDisplay::paint(juce::Graphics& g)
 // ═════════════════════════════════════════════════════════════════════
 PhaseToggle::PhaseToggle() : juce::Button("phase")
 {
-    onImg  = juce::ImageCache::getFromMemory(BinaryData::nemo_phase_on_png,  BinaryData::nemo_phase_on_pngSize);
-    offImg = juce::ImageCache::getFromMemory(BinaryData::nemo_phase_off_png, BinaryData::nemo_phase_off_pngSize);
     setClickingTogglesState(true);
 }
 
 void PhaseToggle::paintButton(juce::Graphics& g, bool, bool)
 {
-    const auto& img = getToggleState() ? onImg : offImg;
-    if (img.isValid())
+    // Lo switch è già disegnato nello sfondo: qui solo un lieve glow dorato quando attivo
+    if (getToggleState())
     {
-        g.setImageResamplingQuality(juce::Graphics::highResamplingQuality);
-        g.drawImageWithin(img, 0, 0, getWidth(), getHeight(), juce::RectanglePlacement::centred);
+        auto r = getLocalBounds().toFloat().reduced(2.0f);
+        g.setColour(juce::Colour(0xffd4a83a).withAlpha(0.28f));
+        g.fillRoundedRectangle(r, 4.0f);
     }
 }
 
@@ -220,15 +219,7 @@ void StereoCompressorEditor::paint(juce::Graphics& g)
     else
         g.fillAll(juce::Colour(0xff9aa0a4));
 
-    // (Il titolo NEMO è ora dorato e stampato nello sfondo)
-
-    // ── Etichetta PHASE (sotto la placca) ──
-    {
-        g.setColour(juce::Colour(0xff3a3d40));
-        g.setFont(juce::Font(juce::Font::getDefaultSansSerifFontName(), (float) S(20), juce::Font::bold));
-        g.drawText("PHASE", S(PH_CX) - S(60), S(PH_CY) + S(PH_SZ) / 2 - S(4),
-                   S(120), S(24), juce::Justification::centred);
-    }
+    // (Titolo NEMO dorato e label PHASE sono stampati nello sfondo)
 
     // ── Box che si accendono quando lo stage è attivo ──
     for (int i = 0; i < 8; ++i)
@@ -254,8 +245,7 @@ void StereoCompressorEditor::resized()
     inFader .setBounds(S(INF_CX)  - fw / 2, fTop, fw, fH);
     outFader.setBounds(S(OUTF_CX) - fw / 2, fTop, fw, fH);
 
-    const int ps = S(PH_SZ);
-    phaseButton.setBounds(S(PH_CX) - ps / 2, S(PH_CY) - ps / 2, ps, ps);
+    phaseButton.setBounds(S(PH_CX) - S(PH_W) / 2, S(PH_CY) - S(PH_H) / 2, S(PH_W), S(PH_H));
 
     meterDisplay.setBounds(S(MG_X0), S(MG_Y0), S(MG_X1) - S(MG_X0), S(MG_Y1) - S(MG_Y0));
 }

@@ -55,8 +55,6 @@ juce_add_binary_data(NemoAssets SOURCES
     source/assets/nemo_background.jpg
     source/assets/nemo_knob.png
     source/assets/nemo_fader.png
-    source/assets/nemo_phase_on.png
-    source/assets/nemo_phase_off.png
 )
 
 target_sources(StereoCompressor PRIVATE
