@@ -65,14 +65,12 @@ cmake --build build --config Release
 La build copia già il plugin in `~/Library/Audio/Plug-Ins/Components/`.
 Se vuoi farlo a mano:
 ```bash
-cp -R "build/StereoCompressor_artefacts/Release/AU/Stereo Compressor.component" \
-      ~/Library/Audio/Plug-Ins/Components/
+cp -R "build/StereoCompressor_artefacts/Release/AU/Stereo Compressor.component" ~/Library/Audio/Plug-Ins/Components/
 ```
 
 ### 4. Togli la quarantena Gatekeeper (plugin non firmato)
 ```bash
-xattr -dr com.apple.quarantine \
-  "~/Library/Audio/Plug-Ins/Components/Stereo Compressor.component"
+xattr -dr com.apple.quarantine "$HOME/Library/Audio/Plug-Ins/Components/Stereo Compressor.component"
 ```
 
 ### 5. Verifica che l'AU sia valido
@@ -136,8 +134,7 @@ git pull
 cmake --build build --config Release
 # la build ricopia da sola l'AU in ~/Library/Audio/Plug-Ins/Components/
 # togli di nuovo la quarantena e rivalida:
-xattr -dr com.apple.quarantine \
-  "~/Library/Audio/Plug-Ins/Components/Stereo Compressor.component"
+xattr -dr com.apple.quarantine "$HOME/Library/Audio/Plug-Ins/Components/Stereo Compressor.component"
 auval -v aufx Scmp Mypl
 ```
 Poi **riavvia Logic Pro** (rilegge i plugin all'avvio). Se non vedi le modifiche: *Impostazioni → Plug-in Manager → Reset & Rescan Selection*.
