@@ -4,24 +4,21 @@
 // ── Geometria base nello spazio dello sfondo (848 x 1234 px, barra preset rimossa) ──
 namespace nemo
 {
-    constexpr float BG_W = 848.0f, BG_H = 1234.0f;
-    constexpr float SCALE = 0.60f;                 // finestra = 509 x 740
+    constexpr float BG_W = 848.0f, BG_H = 1264.0f;
+    constexpr float SCALE = 0.60f;                 // finestra = 509 x 758
 
-    constexpr int   KNOB_CX = 258, KNOB_D = 74;    // knob -40% (era 124)
-    const int       ROWS[8] = { 157, 275, 416, 517, 617, 718, 860, 981 };
+    constexpr int   KNOB_CX = 258, KNOB_D = 74;
+    const int       ROWS[8] = { 185, 304, 444, 545, 644, 746, 888, 1009 };
 
     constexpr int   BOX_X = 333, BOX_W = 80, BOX_H = 30;
 
-    constexpr int   MG_X0 = 589, MG_Y0 = 102, MG_X1 = 694, MG_Y1 = 918;
+    constexpr int   MG_X0 = 589, MG_Y0 = 132, MG_X1 = 694, MG_Y1 = 948;
 
     constexpr int   INF_CX = 68, OUTF_CX = 778;
-    constexpr int   FTRAVEL_TOP = 132, FTRAVEL_BOT = 1116, FCAP_W = 60;
+    constexpr int   FTRAVEL_TOP = 162, FTRAVEL_BOT = 1146, FCAP_W = 60;
     constexpr float FADER_ASPECT = 620.0f / 318.0f;
 
-    constexpr int   PH_CX = 242, PH_CY = 1074, PH_SZ = 58; // switch PHASE (-40%)
-
-    // Titolo NEMO (disegnato da codice con font artistico)
-    const juce::String TITLE_FONT = "Snell Roundhand";
+    constexpr int   PH_CX = 253, PH_CY = 1108, PH_SZ = 124; // placca PHASE (aspetto 0.5)
 
     const juce::Colour LED_COLOUR  { 0xff39e0a6 };  // verde-ciano accensione box
     const juce::Colour HABISS_RED  { 0xffe8342a };  // HABISS più saturato/rosso salendo
@@ -223,17 +220,9 @@ void StereoCompressorEditor::paint(juce::Graphics& g)
     else
         g.fillAll(juce::Colour(0xff9aa0a4));
 
-    // ── Titolo NEMO (font artistico), sopra la linea divisoria ──
-    {
-        juce::Rectangle<int> titleArea(0, S(2), getWidth(), S(50));
-        g.setFont(juce::Font(TITLE_FONT, (float) S(46), juce::Font::bold));
-        g.setColour(juce::Colours::white.withAlpha(0.5f));
-        g.drawText("Nemo", titleArea.translated(0, 1), juce::Justification::centred);   // emboss
-        g.setColour(juce::Colour(0xff2c2f33));
-        g.drawText("Nemo", titleArea, juce::Justification::centred);
-    }
+    // (Il titolo NEMO è ora dorato e stampato nello sfondo)
 
-    // ── Etichetta PHASE (la serigrafia è stata rimossa dallo sfondo) ──
+    // ── Etichetta PHASE (sotto la placca) ──
     {
         g.setColour(juce::Colour(0xff3a3d40));
         g.setFont(juce::Font(juce::Font::getDefaultSansSerifFontName(), (float) S(20), juce::Font::bold));
